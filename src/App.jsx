@@ -1,12 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
+import { OrdersPage } from './pages/OrdersPage.jsx';
+import { Layout } from './components/Layout.jsx';
 
-// Защищенный роут (если не залогинен — редирект на логин)
+// Компонент для защиты путей
 const PrivateRoute = ({ children }) => {
     const { user, loading } = useAuth();
-    if (loading) return <div>Загрузка...</div>;
-    return user ? children : <Navigate to="/login" />;
+    if (loading) return <div className="flex h-screen items-center justify-center">Загрузка...</div>;
+    return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 };
 
 function App() {
@@ -15,11 +17,21 @@ function App() {
             <BrowserRouter>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
+                    
+                    {/* Все защищенные страницы пишем тут */}
                     <Route path="/orders" element={
                         <PrivateRoute>
-                            <h1>Список заказов (виден только авторизованным)</h1>
+                            <OrdersPage />
                         </PrivateRoute>
                     } />
+
+                    <Route path="/customers" element={
+                        <PrivateRoute>
+                            <h2 className="text-2xl font-bold">Страница клиентов (в разработке)</h2>
+                        </PrivateRoute>
+                    } />
+
+                    {/* Редирект с корня на заказы */}
                     <Route path="/" element={<Navigate to="/orders" />} />
                 </Routes>
             </BrowserRouter>
