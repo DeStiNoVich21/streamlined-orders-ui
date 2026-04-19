@@ -32,29 +32,33 @@ export const Layout = ({ children }) => {
                     )}
                 </nav>
             </div>
-
-            {/* Основная область */}
-            <div className="flex-1 flex flex-col">
-                <header className="bg-white shadow-md p-4 flex justify-between items-center px-8">
-                    <div className="text-gray-500">Панель управления / <span className="text-gray-900 font-semibold">Обзор</span></div>
-                    <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                            <p className="text-sm font-bold text-gray-800">{user?.username}</p>
-                            <p className="text-xs text-gray-500">{user?.role}</p>
-                        </div>
-                        <button 
-                            onClick={handleLogout}
-                            className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
-                        >
-                            Выйти
-                        </button>
-                    </div>
-                </header>
-
-                <main className="p-8">
-                    {children}
-                </main>
+            
+{/* Основная область */}
+<div className="flex-1 flex flex-col min-w-0"> {/* Добавили min-w-0 */}
+    <header className="bg-white shadow-md p-4 flex justify-between items-center px-8 flex-shrink-0">
+        <div className="text-gray-500">
+            Панель управления / <span className="text-gray-900 font-semibold uppercase">{user?.role}</span>
+        </div>
+        <div className="flex items-center space-x-4">
+            <div className="text-right">
+                <p className="text-sm font-bold text-gray-800">{user?.username}</p>
+                <p className="text-xs text-gray-500">{user?.role}</p>
             </div>
+            <button 
+                onClick={handleLogout}
+                className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer"
+            >
+                Выйти
+            </button>
+        </div>
+    </header>
+
+    <main className="p-8 flex-1 overflow-y-auto"> {/* Убрали лишние ограничения, добавили flex-1 */}
+        <div className="max-w-[1600px] mx-auto w-full"> {/* Контейнер для центровки на ОЧЕНЬ широких экранах */}
+            {children}
+        </div>
+    </main>
+</div>
         </div>
     );
 };

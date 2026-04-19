@@ -27,7 +27,6 @@ function App() {
 
                     <Route path="/customers" element={
                         <PrivateRoute>
-                            <h2 className="text-2xl font-bold">Страница клиентов (в разработке)</h2>
                         </PrivateRoute>
                     } />
 

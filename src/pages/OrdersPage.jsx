@@ -5,68 +5,84 @@ export const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    const fetchOrders = () => {
         api.get('/orders')
             .then(res => {
                 setOrders(res.data);
                 setLoading(false);
             })
-            .catch(err => {
-                console.error("Ошибка загрузки заказов:", err);
-                setLoading(false);
-            });
+            .catch(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        fetchOrders();
     }, []);
 
-    if (loading) return <div className="text-center py-10">Загрузка данных из БД...</div>;
+    // Функция обновления статуса через HttpPatch
+    const handleStatusUpdate = async (id, currentStatus) => {
+        const nextStatus = currentStatus === 'Processing' ? 'Delivered' : 'Processing';
+        try {
+            // В твоем контроллере [FromBody] string status, поэтому передаем строку напрямую
+            await api.patch(`/orders/${id}/status`, nextStatus, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            fetchOrders(); // Обновляем список
+        } catch (err) {
+            alert("Ошибка при обновлении статуса");
+        }
+    };
+
+    if (loading) return <div className="p-8">Загрузка заказов...</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-800">Список заказов</h2>
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-                    + Создать заказ
+            <div className="flex justify-between items-center text-gray-800">
+                <h2 className="text-2xl font-bold">Управление заказами</h2>
+                <button 
+                    onClick={() => alert('Форма создания заказа должна соответствовать CreateOrderDto')}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-medium"
+                >
+                    + Новый заказ
                 </button>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th className="p-4 font-semibold text-gray-600">ID</th>
-                            <th className="p-4 font-semibold text-gray-600">Клиент</th>
-                            <th className="p-4 font-semibold text-gray-600">Дата</th>
-                            <th className="p-4 font-semibold text-gray-600">Статус</th>
-                            <th className="p-4 font-semibold text-gray-600 text-right">Сумма</th>
+                            <th className="p-4 text-gray-600">Заказ</th>
+                            <th className="p-4 text-gray-600">Клиент</th>
+                            <th className="p-4 text-gray-600">Статус</th>
+                            <th className="p-4 text-gray-600">Сумма</th>
+                            <th className="p-4 text-gray-600 text-center">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {orders.length > 0 ? orders.map(order => (
-                            <tr key={order.orderId} className="hover:bg-gray-50 border-b border-gray-100 last:border-0 transition">
-                                <td className="p-4 font-medium">#{order.orderId}</td>
-                                <td className="p-4 text-gray-700">{order.customer?.fullName || "Не указан"}</td>
-                                <td className="p-4 text-gray-500 text-sm">
-                                    {new Date(order.orderDate).toLocaleDateString()}
+                        {orders.map(order => (
+                            <tr key={order.orderId} className="border-b last:border-0 hover:bg-gray-50">
+                                <td className="p-4 font-semibold text-blue-600">#{order.orderId}</td>
+                                <td className="p-4">
+                                    <div className="font-medium text-gray-800">{order.customer?.fullName || 'Загрузка...'}</div>
+                                    <div className="text-xs text-gray-400">ID клиента: {order.customerId}</div>
                                 </td>
                                 <td className="p-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' :
-                                        order.status === 'Processing' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-700'
+                                    <span className={`px-2 py-1 rounded-md text-xs font-bold ${
+                                        order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                     }`}>
                                         {order.status}
                                     </span>
                                 </td>
-                                <td className="p-4 text-right font-semibold text-gray-900">
-                                    {order.totalAmount?.toLocaleString()} ₽
+                                <td className="p-4 font-bold text-gray-900">{order.totalAmount} ₽</td>
+                                <td className="p-4 text-center">
+                                    <button 
+                                        onClick={() => handleStatusUpdate(order.orderId, order.status)}
+                                        className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded border transition"
+                                    >
+                                        Сменить статус
+                                    </button>
                                 </td>
                             </tr>
-                        )) : (
-                            <tr>
-                                <td colSpan="5" className="p-10 text-center text-gray-400 italic">
-                                    Заказы пока не найдены в базе данных.
-                                </td>
-                            </tr>
-                        )}
+                        ))}
                     </tbody>
                 </table>
             </div>
