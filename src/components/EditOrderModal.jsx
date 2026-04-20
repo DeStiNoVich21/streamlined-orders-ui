@@ -8,7 +8,8 @@ export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => 
     const [formData, setFormData] = useState({
         customerId: '',
         employeeId: '',
-        status: ''
+        status: '',
+        paymentMethod: ''
     });
 
     useEffect(() => {
@@ -34,7 +35,8 @@ export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => 
                     setFormData({
                         customerId: order.customerId || '',
                         employeeId: order.employeeId || '',
-                        status: order.status || 'Processing'
+                        status: order.status || 'Processing',
+                        paymentMethod: order.paymentMethod || 'Cash' // Добавлено
                     });
                 } catch (err) {
                     console.error("Ошибка загрузки:", err);
@@ -122,7 +124,18 @@ export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => 
                             <option value="Cancelled">Cancelled</option>
                         </select>
                     </div>
-
+<div>
+        <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
+        <select 
+            className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.paymentMethod}
+            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+        >
+            <option value="Cash">Наличные</option>
+            <option value="Card">Карта</option>
+            <option value="Online">Онлайн</option>
+        </select>
+    </div>
                     {/* СЕКЦИЯ РЕДАКТИРОВАНИЯ ТОВАРОВ */}
                     <div className="border-t pt-4">
                         <h3 className="text-md font-bold text-gray-700 mb-3 flex items-center gap-2">

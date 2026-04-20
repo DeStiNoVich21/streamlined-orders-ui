@@ -6,13 +6,15 @@ export const CreateOrderModal = ({ isOpen, onClose, onOrderCreated }) => {
     const [employees, setEmployees] = useState([]);
     const [products, setProducts] = useState([]);
     
-    const [formData, setFormData] = useState({
-        customerId: '',
-        employeeId: '',
-        pickupPointId: 1, 
-        paymentStatus: 'Pending',
-        items: [] 
-    });
+    // 1. Обновляем начальное состояние
+const [formData, setFormData] = useState({
+    customerId: '',
+    employeeId: '',
+    pickupPointId: 1, 
+    paymentStatus: 'Pending',
+    paymentMethod: 'Cash', // Добавлено по умолчанию
+    items: [] 
+});
 
     const [currentItem, setCurrentItem] = useState({ productId: '', quantity: 1 });
 
@@ -56,6 +58,7 @@ export const CreateOrderModal = ({ isOpen, onClose, onOrderCreated }) => {
                 employeeId: parseInt(formData.employeeId),
                 pickupPointId: formData.pickupPointId,
                 paymentStatus: formData.paymentStatus,
+                paymentMethod: formData.paymentMethod,
                 items: formData.items.map(({productId, quantity}) => ({productId, quantity}))
             });
             onOrderCreated(); 
@@ -102,7 +105,18 @@ export const CreateOrderModal = ({ isOpen, onClose, onOrderCreated }) => {
                             </select>
                         </div>
                     </div>
-
+<div>
+    <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
+    <select 
+        className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+        value={formData.paymentMethod}
+        onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+    >
+        <option value="Cash">Наличные</option>
+        <option value="Card">Карта</option>
+        <option value="Online">Онлайн</option>
+    </select>
+</div>
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <h3 className="text-blue-800 font-bold mb-3 flex items-center gap-2">
                             <span>🛒</span> Состав заказа

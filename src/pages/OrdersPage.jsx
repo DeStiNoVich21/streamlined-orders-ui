@@ -141,6 +141,7 @@ export const OrdersPage = () => {
                             <th className="p-5">ID</th>
                             <th className="p-5">Данные заказа</th>
                             <th className="p-5 text-center">Статус</th>
+                            <th className="p-5">Метод оплаты</th>
                             <th className="p-5 text-right">Сумма</th>
                             <th className="p-5 text-center">Действия</th>
                         </tr>
@@ -167,6 +168,11 @@ export const OrdersPage = () => {
                                             {order.status?.toUpperCase()}
                                         </span>
                                     </td>
+                                    <td className="p-5">
+    <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
+        {order.paymentMethod || 'Не указан'}
+    </span>
+</td>
                                     <td className="p-5 font-black text-gray-900 text-right">{order.totalAmount?.toLocaleString()} ₽</td>
                                     <td className="p-5 text-center space-x-2">
                                         <button onClick={() => setEditingOrderId(order.orderId)} className="text-blue-500 hover:text-blue-700 text-xs font-bold p-2">ИЗМЕНИТЬ</button>
