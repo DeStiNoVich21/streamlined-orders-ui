@@ -6,7 +6,7 @@ import { CustomersPage } from './pages/CustomersPage.jsx';
 import { ProductsPage } from './pages/ProductsPage.jsx';
 import { EmployeesPage } from './pages/EmployeesPage.jsx'; // 1. Импорт новой страницы
 import { Layout } from './components/Layout.jsx';
-
+import { PickupPointsPage } from './pages/PickupPointsPage.jsx';
 const PrivateRoute = ({ children }) => {
     const { user, loading } = useAuth();
     if (loading) return <div className="flex h-screen items-center justify-center font-bold italic text-gray-400">Загрузка системы...</div>;
@@ -35,6 +35,9 @@ function App() {
                     {/* 2. Новый маршрут для сотрудников */}
                     <Route path="/employees" element={
                         <PrivateRoute><EmployeesPage /></PrivateRoute>
+                    } />
+                    <Route path="/points" element={
+                        <PrivateRoute><PickupPointsPage /></PrivateRoute>
                     } />
 
                     <Route path="/" element={<Navigate to="/orders" />} />

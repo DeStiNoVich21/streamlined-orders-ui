@@ -61,16 +61,36 @@ export const EmployeesPage = () => {
         return ['all', ...new Set(titles)];
     }, [employees]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm("Удалить сотрудника из системы?")) {
-            try {
-                await api.delete(`/employees/${id}`);
-                setEmployees(employees.filter(e => e.employeeId !== id));
-            } catch (err) {
-                alert("Ошибка удаления. Сотрудник может быть связан с заказами.");
+    const handleDelete = async (emp) => {
+    if (!window.confirm(`Удалить сотрудника ${emp.fullName}?`)) return;
+
+    try {
+        // 1. Удаляем сотрудника
+        await api.delete(`/employees/${emp.employeeId}`);
+
+        // 2. Очищаем его имя из всех точек выдачи (Frontend-way)
+        const pointsRes = await api.get('/pickuppoints');
+        const allPoints = pointsRes.data.$values || pointsRes.data || [];
+        
+        for (const point of allPoints) {
+            if (point.managerName?.includes(emp.fullName)) {
+                const updatedManagers = point.managerName
+                    .split(', ')
+                    .filter(name => name !== emp.fullName)
+                    .join(', ');
+                
+                await api.put(`/pickuppoints/${point.pointId}`, {
+                    ...point,
+                    managerName: updatedManagers
+                });
             }
         }
-    };
+        
+        setEmployees(employees.filter(e => e.employeeId !== emp.employeeId));
+    } catch (err) {
+        alert("Ошибка при синхронизации данных.");
+    }
+};
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const currentItems = filteredEmployees.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);

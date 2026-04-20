@@ -31,7 +31,9 @@ export const Layout = ({ children }) => {
                     <Link to="/products" className={`flex items-center space-x-2 p-2 hover:bg-slate-800 rounded transition ${isActive('/products')}`}>
                         <span>🏷️</span> <span>Товары</span>
                     </Link>
-
+                    <Link to="/points" className={`flex items-center space-x-2 p-2 hover:bg-slate-800 rounded transition ${isActive('/points')}`}>
+    <span>📍</span> <span>Пункты выдачи</span>
+</Link>
                     {/* Секция для Админа и Менеджера */}
                     {(user?.role === 'Admin' || user?.role === 'Manager') && (
                         <div className="pt-4 border-t border-slate-700 mt-4">
