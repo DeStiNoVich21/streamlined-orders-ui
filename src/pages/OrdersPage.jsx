@@ -1,16 +1,14 @@
-import React, { useEffect, useState } from 'react'; // Добавили React сюда
+import React, { useEffect, useState } from 'react';
 import api from '../api/axiosInstance';
 import { CreateOrderModal } from '../components/CreateOrderModal';
 import { EditOrderModal } from '../components/EditOrderModal';
 
 export const OrdersPage = () => {
-    // ... остальной код без изменений
     const [orders, setOrders] = useState([]);
     const [customers, setCustomers] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // Храним товары для каждого заказа отдельно: { [orderId]: [items] }
     const [orderItemsData, setOrderItemsData] = useState({});
     const [loadingItems, setLoadingItems] = useState({});
 
@@ -20,6 +18,10 @@ export const OrdersPage = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState('All');
     const [expandedRows, setExpandedRows] = useState([]);
+
+    // --- ПАГИНАЦИЯ ---
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5; // Количество заказов на одной странице
 
     const fetchData = async () => {
         setLoading(true);
@@ -41,46 +43,29 @@ export const OrdersPage = () => {
 
     useEffect(() => { fetchData(); }, []);
 
+    // Сброс на 1 страницу при поиске или фильтрации
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus]);
+
     const fetchOrderItems = async (orderId) => {
-    if (orderItemsData[orderId]) return;
-
-    setLoadingItems(prev => ({ ...prev, [orderId]: true }));
-    try {
-        const res = await api.get(`/orders/${orderId}/items`);
-        console.log("Данные от API для заказа " + orderId, res.data); // Посмотри в консоль браузера
-
-        let items = [];
-        
-        // 1. Проверяем, не пришел ли массив напрямую
-        if (Array.isArray(res.data)) {
-            items = res.data;
-        } 
-        // 2. Проверяем формат EF Core с $values (самый вероятный случай)
-        else if (res.data && res.data.$values) {
-            items = res.data.$values;
+        if (orderItemsData[orderId]) return;
+        setLoadingItems(prev => ({ ...prev, [orderId]: true }));
+        try {
+            const res = await api.get(`/orders/${orderId}/items`);
+            let items = res.data.$values || (Array.isArray(res.data) ? res.data : [res.data]);
+            setOrderItemsData(prev => ({ ...prev, [orderId]: items }));
+        } catch (err) {
+            console.error("Ошибка загрузки состава заказа:", err);
+        } finally {
+            setLoadingItems(prev => ({ ...prev, [orderId]: false }));
         }
-        // 3. Если пришел одиночный объект (одна позиция)
-        else if (res.data && typeof res.data === 'object') {
-            items = [res.data];
-        }
-
-        setOrderItemsData(prev => ({ ...prev, [orderId]: items }));
-    } catch (err) {
-        console.error("Ошибка загрузки состава заказа:", err);
-    } finally {
-        setLoadingItems(prev => ({ ...prev, [orderId]: false }));
-    }
-};
+    };
 
     const toggleRow = (id) => {
         const isExpanding = !expandedRows.includes(id);
-        setExpandedRows(prev => 
-            isExpanding ? [...prev, id] : prev.filter(rowId => rowId !== id)
-        );
-        
-        if (isExpanding) {
-            fetchOrderItems(id);
-        }
+        setExpandedRows(prev => isExpanding ? [...prev, id] : prev.filter(rowId => rowId !== id));
+        if (isExpanding) fetchOrderItems(id);
     };
 
     const handleDelete = async (id) => {
@@ -88,27 +73,32 @@ export const OrdersPage = () => {
             try {
                 await api.delete(`/orders/${id}`);
                 setOrders(orders.filter(o => o.orderId !== id));
-            } catch (err) {
-                alert("Ошибка при удалении.");
-            }
+            } catch (err) { alert("Ошибка при удалении."); }
         }
     };
 
     const getCustomerName = (id) => customers.find(c => c.customerId === id)?.fullName || `Клиент #${id}`;
     const getEmployeeName = (id) => employees.find(e => e.employeeId === id)?.fullName || `Сотрудник #${id}`;
 
+    // 1. Фильтруем данные
     const filteredOrders = orders.filter(order => {
-        const matchesSearch = 
-            order.orderId.toString().includes(searchTerm) || 
-            getCustomerName(order.customerId).toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = order.orderId.toString().includes(searchTerm) || 
+                             getCustomerName(order.customerId).toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
         return matchesSearch && matchesStatus;
     });
+
+    // 2. Рассчитываем индексы для текущей страницы
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentOrders = filteredOrders.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
     if (loading && orders.length === 0) return <div className="p-8 text-center italic">Загрузка данных...</div>;
 
     return (
         <div className="w-full space-y-6">
+            {/* Хедер и фильтры (без изменений) */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-2xl font-black text-gray-900">Управление заказами</h2>
@@ -117,7 +107,6 @@ export const OrdersPage = () => {
                         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">+ Создать заказ</button>
                     </div>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="relative">
                         <span className="absolute left-3 top-3 text-gray-400">🔍</span>
@@ -143,6 +132,7 @@ export const OrdersPage = () => {
                 </div>
             </div>
 
+            {/* Таблица */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 border-b">
@@ -156,16 +146,14 @@ export const OrdersPage = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {filteredOrders.map(order => (
+                        {currentOrders.map(order => (
                             <React.Fragment key={order.orderId}>
                                 <tr className="hover:bg-blue-50/10 transition-colors group">
                                     <td className="p-5">
                                         <button 
                                             onClick={() => toggleRow(order.orderId)}
                                             className={`transition-transform duration-200 ${expandedRows.includes(order.orderId) ? 'rotate-90' : ''}`}
-                                        >
-                                            ▶
-                                        </button>
+                                        >▶</button>
                                     </td>
                                     <td className="p-5 font-mono font-bold text-blue-600">#{order.orderId}</td>
                                     <td className="p-5">
@@ -185,7 +173,7 @@ export const OrdersPage = () => {
                                         <button onClick={() => handleDelete(order.orderId)} className="text-red-400 hover:text-red-600 text-xs font-bold p-2">УДАЛИТЬ</button>
                                     </td>
                                 </tr>
-                                
+                                {/* Содержимое раскрывающегося ряда (без изменений) */}
                                 {expandedRows.includes(order.orderId) && (
                                     <tr className="bg-gray-50/50">
                                         <td colSpan="6" className="p-6">
@@ -193,30 +181,22 @@ export const OrdersPage = () => {
                                                 <h4 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-2">📦 Состав заказа:</h4>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {loadingItems[order.orderId] ? (
-    <div className="text-sm text-gray-500 animate-pulse">Загрузка товаров...</div>
-) : orderItemsData[order.orderId]?.length > 0 ? (
-    orderItemsData[order.orderId].map((item, idx) => {
-        // Проверяем наличие данных, так как в JSON может быть null
-        if (!item) return null; 
-        
-        return (
-            <div key={idx} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
-                <span className="text-gray-700">
-                    <span className="font-bold">
-                        {/* Обращаемся к вложенному объекту product */}
-                        {item.product?.title || `Товар #${item.productId}`}
-                    </span> 
-                    {item.quantity && ` x ${item.quantity} шт.`}
-                </span>
-                <span className="font-bold text-gray-900">
-                    {item.priceAtPurchase?.toLocaleString()} ₽
-                </span>
-            </div>
-        );
-    })
-) : (
-    <div className="text-gray-400 italic text-sm">В этом заказе нет товаров</div>
-)}
+                                                        <div className="text-sm text-gray-500 animate-pulse">Загрузка товаров...</div>
+                                                    ) : orderItemsData[order.orderId]?.length > 0 ? (
+                                                        orderItemsData[order.orderId].map((item, idx) => (
+                                                            item && (
+                                                            <div key={idx} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+                                                                <span className="text-gray-700">
+                                                                    <span className="font-bold">{item.product?.title || `Товар #${item.productId}`}</span> 
+                                                                    {item.quantity && ` x ${item.quantity} шт.`}
+                                                                </span>
+                                                                <span className="font-bold text-gray-900">{item.priceAtPurchase?.toLocaleString()} ₽</span>
+                                                            </div>
+                                                            )
+                                                        ))
+                                                    ) : (
+                                                        <div className="text-gray-400 italic text-sm">В этом заказе нет товаров</div>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>
@@ -226,6 +206,40 @@ export const OrdersPage = () => {
                         ))}
                     </tbody>
                 </table>
+
+                {/* --- ПАНЕЛЬ ПАГИНАЦИИ --- */}
+                <div className="p-4 bg-gray-50 border-t flex justify-between items-center">
+                    <span className="text-sm text-gray-500 font-medium">
+                        Страница <span className="text-blue-600">{currentPage}</span> из {totalPages || 1}
+                    </span>
+                    <div className="flex gap-1">
+                        <button 
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(prev => prev - 1)}
+                            className="px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                        >
+                            Назад
+                        </button>
+                        {[...Array(totalPages)].map((_, i) => (
+                            <button
+                                key={i}
+                                onClick={() => setCurrentPage(i + 1)}
+                                className={`w-10 h-10 border rounded-lg text-sm font-bold transition-all ${
+                                    currentPage === i + 1 ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 hover:bg-gray-50'
+                                }`}
+                            >
+                                {i + 1}
+                            </button>
+                        ))}
+                        <button 
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            onClick={() => setCurrentPage(prev => prev + 1)}
+                            className="px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                        >
+                            Вперед
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <CreateOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onOrderCreated={fetchData} />

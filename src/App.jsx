@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
 import { OrdersPage } from './pages/OrdersPage.jsx';
-import { CustomersPage } from './pages/CustomersPage.jsx'; // 1. Добавь этот импорт
+import { CustomersPage } from './pages/CustomersPage.jsx';
 import { Layout } from './components/Layout.jsx';
+import { ProductsPage } from './pages/ProductsPage.jsx';
 
 const PrivateRoute = ({ children }) => {
     const { user, loading } = useAuth();
@@ -26,8 +27,14 @@ function App() {
 
                     <Route path="/customers" element={
                         <PrivateRoute>
-                            {/* 2. Вставь компонент сюда! */}
                             <CustomersPage /> 
+                        </PrivateRoute>
+                    } />
+
+                    {/* ТЕПЕРЬ ОН ВНУТРИ ROUTES */}
+                    <Route path="/products" element={
+                        <PrivateRoute>
+                            <ProductsPage />
                         </PrivateRoute>
                     } />
 
