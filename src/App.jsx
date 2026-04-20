@@ -3,12 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
 import { OrdersPage } from './pages/OrdersPage.jsx';
 import { CustomersPage } from './pages/CustomersPage.jsx';
-import { Layout } from './components/Layout.jsx';
 import { ProductsPage } from './pages/ProductsPage.jsx';
+import { EmployeesPage } from './pages/EmployeesPage.jsx'; // 1. Импорт новой страницы
+import { Layout } from './components/Layout.jsx';
 
 const PrivateRoute = ({ children }) => {
     const { user, loading } = useAuth();
-    if (loading) return <div className="flex h-screen items-center justify-center">Загрузка...</div>;
+    if (loading) return <div className="flex h-screen items-center justify-center font-bold italic text-gray-400">Загрузка системы...</div>;
     return user ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 };
 
@@ -20,25 +21,26 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     
                     <Route path="/orders" element={
-                        <PrivateRoute>
-                            <OrdersPage />
-                        </PrivateRoute>
+                        <PrivateRoute><OrdersPage /></PrivateRoute>
                     } />
 
                     <Route path="/customers" element={
-                        <PrivateRoute>
-                            <CustomersPage /> 
-                        </PrivateRoute>
+                        <PrivateRoute><CustomersPage /></PrivateRoute>
                     } />
 
-                    {/* ТЕПЕРЬ ОН ВНУТРИ ROUTES */}
                     <Route path="/products" element={
-                        <PrivateRoute>
-                            <ProductsPage />
-                        </PrivateRoute>
+                        <PrivateRoute><ProductsPage /></PrivateRoute>
+                    } />
+
+                    {/* 2. Новый маршрут для сотрудников */}
+                    <Route path="/employees" element={
+                        <PrivateRoute><EmployeesPage /></PrivateRoute>
                     } />
 
                     <Route path="/" element={<Navigate to="/orders" />} />
+                    
+                    {/* fallback route */}
+                    <Route path="*" element={<Navigate to="/orders" />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
