@@ -1,43 +1,39 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; // Добавили React сюда
 import api from '../api/axiosInstance';
 import { CreateOrderModal } from '../components/CreateOrderModal';
 import { EditOrderModal } from '../components/EditOrderModal';
 
 export const OrdersPage = () => {
+    // ... остальной код без изменений
     const [orders, setOrders] = useState([]);
-    const [customers, setCustomers] = useState([]); // Справочник клиентов
-    const [employees, setEmployees] = useState([]); // Справочник сотрудников
+    const [customers, setCustomers] = useState([]);
+    const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(true);
+    
+    // Храним товары для каждого заказа отдельно: { [orderId]: [items] }
+    const [orderItemsData, setOrderItemsData] = useState({});
+    const [loadingItems, setLoadingItems] = useState({});
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingOrderId, setEditingOrderId] = useState(null);
-
-    // Функция для получения читаемого имени
-    const getCustomerName = (id) => {
-        const customer = customers.find(c => c.customerId === id);
-        return customer ? customer.fullName : `Клиент #${id}`;
-    };
-
-    const getEmployeeName = (id) => {
-        const employee = employees.find(e => e.employeeId === id);
-        return employee ? employee.fullName : `Сотрудник #${id}`;
-    };
+    
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('All');
+    const [expandedRows, setExpandedRows] = useState([]);
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Загружаем всё параллельно, как в модалке
             const [ordersRes, customersRes, employeesRes] = await Promise.all([
                 api.get('/orders'),
                 api.get('/customers'),
                 api.get('/employees')
             ]);
-
-            // Обработка возможного $values от бэкенда
             setOrders(ordersRes.data.$values || ordersRes.data || []);
             setCustomers(customersRes.data.$values || customersRes.data || []);
             setEmployees(employeesRes.data.$values || employeesRes.data || []);
         } catch (err) {
-            console.error("Ошибка загрузки данных:", err);
+            console.error("Ошибка загрузки:", err);
         } finally {
             setLoading(false);
         }
@@ -45,130 +41,195 @@ export const OrdersPage = () => {
 
     useEffect(() => { fetchData(); }, []);
 
-    const toggleStatus = async (id, currentStatus) => {
-        const nextStatus = currentStatus === 'Processing' ? 'Delivered' : 'Processing';
-        try {
-            await api.patch(`/orders/${id}/status`, nextStatus, {
-                headers: { 'Content-Type': 'application/json' }
-            });
-            setOrders(orders.map(o => o.orderId === id ? { ...o, status: nextStatus } : o));
-        } catch (err) {
-            alert("Не удалось обновить статус");
+    const fetchOrderItems = async (orderId) => {
+    if (orderItemsData[orderId]) return;
+
+    setLoadingItems(prev => ({ ...prev, [orderId]: true }));
+    try {
+        const res = await api.get(`/orders/${orderId}/items`);
+        console.log("Данные от API для заказа " + orderId, res.data); // Посмотри в консоль браузера
+
+        let items = [];
+        
+        // 1. Проверяем, не пришел ли массив напрямую
+        if (Array.isArray(res.data)) {
+            items = res.data;
+        } 
+        // 2. Проверяем формат EF Core с $values (самый вероятный случай)
+        else if (res.data && res.data.$values) {
+            items = res.data.$values;
+        }
+        // 3. Если пришел одиночный объект (одна позиция)
+        else if (res.data && typeof res.data === 'object') {
+            items = [res.data];
+        }
+
+        setOrderItemsData(prev => ({ ...prev, [orderId]: items }));
+    } catch (err) {
+        console.error("Ошибка загрузки состава заказа:", err);
+    } finally {
+        setLoadingItems(prev => ({ ...prev, [orderId]: false }));
+    }
+};
+
+    const toggleRow = (id) => {
+        const isExpanding = !expandedRows.includes(id);
+        setExpandedRows(prev => 
+            isExpanding ? [...prev, id] : prev.filter(rowId => rowId !== id)
+        );
+        
+        if (isExpanding) {
+            fetchOrderItems(id);
         }
     };
+
+    const handleDelete = async (id) => {
+        if (window.confirm(`Вы уверены, что хотите удалить заказ #${id}?`)) {
+            try {
+                await api.delete(`/orders/${id}`);
+                setOrders(orders.filter(o => o.orderId !== id));
+            } catch (err) {
+                alert("Ошибка при удалении.");
+            }
+        }
+    };
+
+    const getCustomerName = (id) => customers.find(c => c.customerId === id)?.fullName || `Клиент #${id}`;
+    const getEmployeeName = (id) => employees.find(e => e.employeeId === id)?.fullName || `Сотрудник #${id}`;
+
+    const filteredOrders = orders.filter(order => {
+        const matchesSearch = 
+            order.orderId.toString().includes(searchTerm) || 
+            getCustomerName(order.customerId).toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = filterStatus === 'All' || order.status === filterStatus;
+        return matchesSearch && matchesStatus;
+    });
 
     if (loading && orders.length === 0) return <div className="p-8 text-center italic">Загрузка данных...</div>;
 
     return (
         <div className="w-full space-y-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
-                <div>
-                    <h2 className="text-3xl font-black text-gray-900 tracking-tight">Заказы</h2>
-                    <p className="text-gray-500 text-sm">Управление продажами и статусами</p>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <h2 className="text-2xl font-black text-gray-900">Управление заказами</h2>
+                    <div className="flex gap-2">
+                        <button onClick={fetchData} className="p-2.5 border rounded-xl hover:bg-gray-50">🔄</button>
+                        <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">+ Создать заказ</button>
+                    </div>
                 </div>
-                
-                <div className="flex gap-3 w-full md:w-auto">
-                    <button 
-                        type="button"
-                        onClick={fetchData}
-                        className="flex-1 md:flex-none border-2 border-gray-200 hover:border-blue-500 hover:text-blue-600 text-gray-600 px-5 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative">
+                        <span className="absolute left-3 top-3 text-gray-400">🔍</span>
+                        <input 
+                            type="text" 
+                            placeholder="Поиск по ID или имени..." 
+                            className="w-full pl-10 pr-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <select 
+                        className="border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
                     >
-                        <span>🔄</span> Обновить всё
-                    </button>
-                    
-                    <button 
-                        type="button"
-                        onClick={() => setIsModalOpen(true)}
-                        className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-100 transition-transform active:scale-95"
-                    >
-                        + Создать
-                    </button>
+                        <option value="All">Все статусы</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
                 </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50/50 border-b border-gray-200">
-                        <tr>
-                            <th className="p-5 text-xs font-bold text-gray-400 uppercase">ID</th>
-                            <th className="p-5 text-xs font-bold text-gray-400 uppercase">Данные заказа</th>
-                            <th className="p-5 text-xs font-bold text-gray-400 uppercase text-center">Статус и Оплата</th>
-                            <th className="p-5 text-xs font-bold text-gray-400 uppercase text-right">Сумма</th>
-                            <th className="p-5 text-xs font-bold text-gray-400 uppercase text-center">Действие</th>
+                    <thead className="bg-gray-50 border-b">
+                        <tr className="text-xs font-bold text-gray-400 uppercase">
+                            <th className="p-5 w-10"></th>
+                            <th className="p-5">ID</th>
+                            <th className="p-5">Данные заказа</th>
+                            <th className="p-5 text-center">Статус</th>
+                            <th className="p-5 text-right">Сумма</th>
+                            <th className="p-5 text-center">Действия</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {orders.map(order => (
-                            <tr key={order.orderId} className="hover:bg-blue-50/20 transition-colors group">
-                                <td className="p-5 font-mono font-bold text-blue-600">#{order.orderId}</td>
-                                <td className="p-5">
-                                    <div className="font-bold text-gray-800">
-                                        {/* Используем хелпер для вывода имени клиента по ID */}
-                                        👤 {getCustomerName(order.customerId)}
-                                    </div>
-                                    <div className="text-xs text-gray-400 mt-1 flex flex-col gap-1">
-                                        <span className="flex items-center gap-1">
-                                            {/* Используем хелпер для вывода имени сотрудника по ID */}
-                                            👔 Продавец: <span className="text-gray-600 font-medium">{getEmployeeName(order.employeeId)}</span>
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                            📅 {new Date(order.orderDate).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td className="p-5 text-center">
-                                    <div className="flex flex-col items-center gap-2">
+                        {filteredOrders.map(order => (
+                            <React.Fragment key={order.orderId}>
+                                <tr className="hover:bg-blue-50/10 transition-colors group">
+                                    <td className="p-5">
                                         <button 
-                                            type="button"
-                                            onClick={() => toggleStatus(order.orderId, order.status)}
-                                            className={`w-32 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${
-                                                order.status === 'Delivered' 
-                                                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                                                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                                            }`}
+                                            onClick={() => toggleRow(order.orderId)}
+                                            className={`transition-transform duration-200 ${expandedRows.includes(order.orderId) ? 'rotate-90' : ''}`}
                                         >
-                                            {order.status?.toUpperCase()}
+                                            ▶
                                         </button>
-                                        
-                                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase border ${
-                                            order.paymentStatus === 'Paid' 
-                                            ? 'border-green-200 text-green-600 bg-green-50' 
-                                            : 'border-red-200 text-red-600 bg-red-50'
+                                    </td>
+                                    <td className="p-5 font-mono font-bold text-blue-600">#{order.orderId}</td>
+                                    <td className="p-5">
+                                        <div className="font-bold text-gray-800">{getCustomerName(order.customerId)}</div>
+                                        <div className="text-[11px] text-gray-400">👔 {getEmployeeName(order.employeeId)}</div>
+                                    </td>
+                                    <td className="p-5 text-center">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${
+                                            order.status === 'Delivered' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                                         }`}>
-                                            {order.paymentStatus || 'Pending'}
+                                            {order.status?.toUpperCase()}
                                         </span>
-                                    </div>
-                                </td>
-                                <td className="p-5 font-black text-gray-900 text-right">
-                                    {order.totalAmount?.toLocaleString()} ₽
-                                </td>
-                                <td className="p-5 text-center">
-                                    <button 
-                                        type="button"
-                                        onClick={() => setEditingOrderId(order.orderId)}
-                                        className="opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer"
-                                    >
-                                        ИЗМЕНИТЬ
-                                    </button>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td className="p-5 font-black text-gray-900 text-right">{order.totalAmount?.toLocaleString()} ₽</td>
+                                    <td className="p-5 text-center space-x-2">
+                                        <button onClick={() => setEditingOrderId(order.orderId)} className="text-blue-500 hover:text-blue-700 text-xs font-bold p-2">ИЗМЕНИТЬ</button>
+                                        <button onClick={() => handleDelete(order.orderId)} className="text-red-400 hover:text-red-600 text-xs font-bold p-2">УДАЛИТЬ</button>
+                                    </td>
+                                </tr>
+                                
+                                {expandedRows.includes(order.orderId) && (
+                                    <tr className="bg-gray-50/50">
+                                        <td colSpan="6" className="p-6">
+                                            <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-inner">
+                                                <h4 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-2">📦 Состав заказа:</h4>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {loadingItems[order.orderId] ? (
+    <div className="text-sm text-gray-500 animate-pulse">Загрузка товаров...</div>
+) : orderItemsData[order.orderId]?.length > 0 ? (
+    orderItemsData[order.orderId].map((item, idx) => {
+        // Проверяем наличие данных, так как в JSON может быть null
+        if (!item) return null; 
+        
+        return (
+            <div key={idx} className="flex justify-between items-center text-sm border-b pb-2 last:border-0">
+                <span className="text-gray-700">
+                    <span className="font-bold">
+                        {/* Обращаемся к вложенному объекту product */}
+                        {item.product?.title || `Товар #${item.productId}`}
+                    </span> 
+                    {item.quantity && ` x ${item.quantity} шт.`}
+                </span>
+                <span className="font-bold text-gray-900">
+                    {item.priceAtPurchase?.toLocaleString()} ₽
+                </span>
+            </div>
+        );
+    })
+) : (
+    <div className="text-gray-400 italic text-sm">В этом заказе нет товаров</div>
+)}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </React.Fragment>
                         ))}
                     </tbody>
                 </table>
             </div>
 
-            <CreateOrderModal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
-                onOrderCreated={fetchData} 
-            />
-            
-            <EditOrderModal 
-                isOpen={!!editingOrderId} 
-                orderId={editingOrderId}
-                onClose={() => setEditingOrderId(null)} 
-                onOrderUpdated={fetchData} 
-            />
+            <CreateOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onOrderCreated={fetchData} />
+            <EditOrderModal isOpen={!!editingOrderId} orderId={editingOrderId} onClose={() => setEditingOrderId(null)} onOrderUpdated={fetchData} />
         </div>
     );
 };
