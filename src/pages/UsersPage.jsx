@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api/axiosInstance';
 import { UserModal } from '../components/UserModal';
+// --- ИМПОРТЫ ДЛЯ ЛОГИРОВАНИЯ И ЭКСПОРТА ---
+import { logActivity } from '../utils/logger';
+import { downloadCSV } from '../utils/exportUtils';
 
 export const UsersPage = () => {
     const [users, setUsers] = useState([]);
@@ -44,14 +47,31 @@ export const UsersPage = () => {
         });
     }, [users, searchQuery, roleFilter]);
 
+    // --- ФУНКЦИИ ЛОГИРОВАНИЯ И ЭКСПОРТА ---
+    const handleSaveWithLog = () => {
+        const action = selectedUser ? 'Обновление' : 'Создание';
+        logActivity('Безопасность', `${action} аккаунта: ${getName(selectedUser) || 'Новый пользователь'}`);
+        fetchUsers();
+    };
+
+    const handleExport = () => {
+        if (filteredUsers.length === 0) return;
+        downloadCSV(filteredUsers, 'users_list.csv');
+        logActivity('Экспорт', `Выгрузка списка пользователей (${filteredUsers.length} записей)`);
+    };
+
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
     const currentItems = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const handleDelete = async (id) => {
-        if (window.confirm("Удалить аккаунт безвозвратно?")) {
+        const userToDelete = users.find(u => (u.userId || u.UserId) === id);
+        const userName = getName(userToDelete);
+
+        if (window.confirm(`Удалить аккаунт ${userName} безвозвратно?`)) {
             try {
                 await api.delete(`/admin/${id}`);
                 setUsers(users.filter(u => (u.userId || u.UserId) !== id));
+                logActivity('Безопасность', `Удаление пользователя: ${userName} (ID: ${id})`);
             } catch (err) { alert("Ошибка при удалении"); }
         }
     };
@@ -64,7 +84,6 @@ export const UsersPage = () => {
                         <h2 className="text-3xl font-black text-gray-900 tracking-tight">Пользователи</h2>
                         <p className="text-gray-400 text-sm font-bold uppercase tracking-widest mt-1">Всего в базе: {filteredUsers.length}</p>
                     </div>
-                    {/* Кнопка Обновить */}
                     <button 
                         onClick={fetchUsers}
                         className={`p-3 rounded-2xl bg-gray-50 text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-all active:rotate-180 duration-500 ${loading ? 'animate-spin' : ''}`}
@@ -75,6 +94,13 @@ export const UsersPage = () => {
                 </div>
                 
                 <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                    <button 
+                        onClick={handleExport}
+                        className="bg-emerald-50 text-emerald-700 px-4 py-2.5 rounded-2xl hover:bg-emerald-100 transition font-bold border border-emerald-100"
+                        title="Экспорт в CSV"
+                    >
+                        📥 CSV
+                    </button>
                     <input 
                         type="text" 
                         placeholder="Поиск..."
@@ -109,7 +135,6 @@ export const UsersPage = () => {
                         const userName = getName(user);
                         const userRole = getRole(user);
                         const userId = user.userId || user.UserId;
-                        // Форматирование даты (если она есть в модели)
                         const createdAt = user.createdAt || user.CreatedAt;
                         const dateFormatted = createdAt ? new Date(createdAt).toLocaleDateString() : 'Дата не указана';
 
@@ -126,8 +151,6 @@ export const UsersPage = () => {
                                 
                                 <h3 className="font-black text-gray-900 truncate">{userName}</h3>
                                 <p className="text-gray-400 text-xs mb-1 truncate">{user.email || user.Email || "нет email"}</p>
-                                
-                                {/* Дата создания */}
                                 <p className="text-[10px] text-gray-300 font-bold mb-4 uppercase">Создан: {dateFormatted}</p>
                                 
                                 <div className="flex items-center gap-2 mb-6">
@@ -169,7 +192,12 @@ export const UsersPage = () => {
                 </div>
             )}
 
-            <UserModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} user={selectedUser} onSave={fetchUsers} />
+            <UserModal 
+                isOpen={isModalOpen} 
+                onClose={() => setIsModalOpen(false)} 
+                user={selectedUser} 
+                onSave={handleSaveWithLog} 
+            />
         </div>
     );
 };

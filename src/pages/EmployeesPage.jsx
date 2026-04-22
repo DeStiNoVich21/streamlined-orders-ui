@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../api/axiosInstance';
-import { EmployeeModal } from '../components/EmployeeModal'; // Создадим ниже
+import { EmployeeModal } from '../components/EmployeeModal';
+// --- ИМПОРТЫ ДЛЯ ЛОГИРОВАНИЯ И ЭКСПОРТА ---
+import { logActivity } from '../utils/logger';
+import { downloadCSV } from '../utils/exportUtils';
 
 export const EmployeesPage = () => {
     const [employees, setEmployees] = useState([]);
@@ -61,36 +64,51 @@ export const EmployeesPage = () => {
         return ['all', ...new Set(titles)];
     }, [employees]);
 
+    // --- ОБЕРТКИ С ЛОГИРОВАНИЕМ ---
+    const handleSaveWithLog = () => {
+        const action = selectedEmployee ? 'Обновление' : 'Регистрация';
+        logActivity('Персонал', `${action} сотрудника: ${selectedEmployee?.fullName || 'Новый профиль'}`);
+        fetchEmployees();
+    };
+
+    const handleExport = () => {
+        if (filteredEmployees.length === 0) return;
+        downloadCSV(filteredEmployees, 'employees_report.csv');
+        logActivity('Экспорт', `Выгрузка штатного расписания (${filteredEmployees.length} чел.)`);
+    };
+
     const handleDelete = async (emp) => {
-    if (!window.confirm(`Удалить сотрудника ${emp.fullName}?`)) return;
+        if (!window.confirm(`Удалить сотрудника ${emp.fullName}?`)) return;
 
-    try {
-        // 1. Удаляем сотрудника
-        await api.delete(`/employees/${emp.employeeId}`);
+        try {
+            // 1. Удаляем сотрудника
+            await api.delete(`/employees/${emp.employeeId}`);
 
-        // 2. Очищаем его имя из всех точек выдачи (Frontend-way)
-        const pointsRes = await api.get('/pickuppoints');
-        const allPoints = pointsRes.data.$values || pointsRes.data || [];
-        
-        for (const point of allPoints) {
-            if (point.managerName?.includes(emp.fullName)) {
-                const updatedManagers = point.managerName
-                    .split(', ')
-                    .filter(name => name !== emp.fullName)
-                    .join(', ');
-                
-                await api.put(`/pickuppoints/${point.pointId}`, {
-                    ...point,
-                    managerName: updatedManagers
-                });
+            // 2. Очищаем его имя из всех точек выдачи (Frontend-way)
+            const pointsRes = await api.get('/pickuppoints');
+            const allPoints = pointsRes.data.$values || pointsRes.data || [];
+            
+            for (const point of allPoints) {
+                if (point.managerName?.includes(emp.fullName)) {
+                    const updatedManagers = point.managerName
+                        .split(', ')
+                        .filter(name => name !== emp.fullName)
+                        .join(', ');
+                    
+                    await api.put(`/pickuppoints/${point.pointId}`, {
+                        ...point,
+                        managerName: updatedManagers
+                    });
+                }
             }
+            
+            setEmployees(employees.filter(e => e.employeeId !== emp.employeeId));
+            // ЛОГИРОВАНИЕ УДАЛЕНИЯ
+            logActivity('Персонал', `Удален сотрудник и очищены привязки: ${emp.fullName} (ID: ${emp.employeeId})`);
+        } catch (err) {
+            alert("Ошибка при синхронизации данных.");
         }
-        
-        setEmployees(employees.filter(e => e.employeeId !== emp.employeeId));
-    } catch (err) {
-        alert("Ошибка при синхронизации данных.");
-    }
-};
+    };
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const currentItems = filteredEmployees.slice(indexOfLastItem - itemsPerPage, indexOfLastItem);
@@ -106,6 +124,13 @@ export const EmployeesPage = () => {
                         <p className="text-gray-500 text-sm font-medium">Штат: {filteredEmployees.length} чел.</p>
                     </div>
                     <div className="flex w-full md:w-auto gap-2">
+                        <button 
+                            onClick={handleExport}
+                            className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl hover:bg-emerald-100 transition font-bold border border-emerald-100"
+                            title="Экспорт штата в CSV"
+                        >
+                            📥 CSV
+                        </button>
                         <input 
                             type="text" 
                             placeholder="Поиск по ФИО..." 
@@ -155,32 +180,25 @@ export const EmployeesPage = () => {
                 <div className="text-center py-20 italic text-gray-400">Загрузка штата...</div>
             ) : (
                 <>
-                   {/* Grid - Изменили на xl:grid-cols-3 для увеличения размера карточек */}
 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
     {currentItems.map(e => (
         <div 
             key={e.employeeId} 
             className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden shadow-md hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 group flex flex-col relative"
         >
-            {/* Header: Уменьшили высоту с h-32 до h-28 */}
             <div className="h-28 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center text-5xl relative">
                 <span className="z-10 drop-shadow-lg">👨‍💼</span>
                 <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-                
-                {/* Декоративный элемент - круги на фоне */}
                 <div className="absolute top-0 right-0 w-20 h-20 bg-white/5 rounded-full -mr-10 -mt-10"></div>
             </div>
             
-            {/* Content: Увеличили внутренние отступы p-8 */}
             <div className="p-8 flex-1 flex flex-col -mt-8">
-                {/* Бейдж должности: более выразительный */}
                 <div className="bg-white p-1.5 rounded-2xl shadow-sm self-start mb-4">
                     <div className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-[0.1em]">
                         {e.jobTitle || "Сотрудник"}
                     </div>
                 </div>
                 
-                {/* Имя: увеличили шрифт text-2xl */}
                 <h3 className="font-extrabold text-2xl text-gray-900 mb-2 leading-tight">
                     {e.fullName}
                 </h3>
@@ -194,7 +212,6 @@ export const EmployeesPage = () => {
                     </span>
                 </div>
 
-                {/* Кнопки: сделали выше и добавили иконки */}
                 <div className="flex gap-3 mt-auto pt-6 border-t border-gray-50">
                     <button 
                         onClick={() => { setSelectedEmployee(e); setIsModalOpen(true); }}
@@ -203,7 +220,7 @@ export const EmployeesPage = () => {
                         <span>✏️</span> Изменить
                     </button>
                     <button 
-                        onClick={() => handleDelete(e.employeeId)}
+                        onClick={() => handleDelete(e)}
                         className="flex-1 bg-gray-50 hover:bg-red-50 text-red-500 py-3.5 rounded-2xl transition-all flex items-center justify-center border border-transparent hover:border-red-100"
                         title="Удалить"
                     >
@@ -256,7 +273,7 @@ export const EmployeesPage = () => {
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)} 
                 employee={selectedEmployee}
-                onSave={fetchEmployees} 
+                onSave={handleSaveWithLog} 
             />
         </div>
     );

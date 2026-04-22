@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
     const [formData, setFormData] = useState({
@@ -29,8 +31,12 @@ export const ProductModal = ({ isOpen, onClose, onSave, product = null }) => {
         try {
             if (product) {
                 await api.put(`/products/${product.productId}`, formData);
+                // ЛОГИРОВАНИЕ ИЗМЕНЕНИЯ
+                logActivity('Склад', `Обновлен товар: ${formData.title} (ID: ${product.productId})`);
             } else {
                 await api.post('/products', formData);
+                // ЛОГИРОВАНИЕ СОЗДАНИЯ
+                logActivity('Склад', `Создан новый товар: ${formData.title}`);
             }
             onSave();
             onClose();

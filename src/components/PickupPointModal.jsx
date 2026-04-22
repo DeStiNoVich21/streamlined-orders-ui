@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const PickupPointModal = ({ isOpen, onClose, point, onSave }) => {
     const [allEmployees, setAllEmployees] = useState([]);
@@ -105,6 +107,10 @@ export const PickupPointModal = ({ isOpen, onClose, point, onSave }) => {
             for (const emp of added) {
                 await api.put(`/employees/${emp.employeeId}`, { ...emp, pointId: pointId });
             }
+
+            // --- ЛОГИРОВАНИЕ ДЕЙСТВИЯ ---
+            const actionType = point ? 'Обновление' : 'Создание';
+            logActivity('Пункты выдачи', `${actionType} точки: ${pointData.address}. Назначено сотрудников: ${currentPointEmployees.length}`);
 
             onSave();
             onClose();

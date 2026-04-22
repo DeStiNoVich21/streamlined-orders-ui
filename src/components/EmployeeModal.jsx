@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const EmployeeModal = ({ isOpen, onClose, employee, onSave }) => {
     // Добавляем список всех доступных точек для выпадающего списка
@@ -56,6 +58,14 @@ export const EmployeeModal = ({ isOpen, onClose, employee, onSave }) => {
             } else {
                 await api.post('/employees', payload);
             }
+
+            // --- ЛОГИРОВАНИЕ ДЕЙСТВИЯ ---
+            const pointAddress = pickupPoints.find(p => p.pointId === payload.pointId)?.address || 'Не указан';
+            const logMsg = employee 
+                ? `Обновлен профиль: ${formData.fullName} (Точка: ${pointAddress})` 
+                : `Зарегистрирован новый сотрудник: ${formData.fullName} (Точка: ${pointAddress})`;
+            logActivity('Персонал', logMsg);
+
             onSave();
             onClose();
         } catch (err) {

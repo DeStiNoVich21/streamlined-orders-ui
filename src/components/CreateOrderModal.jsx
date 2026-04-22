@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const CreateOrderModal = ({ isOpen, onClose, onOrderCreated }) => {
     const [customers, setCustomers] = useState([]);
@@ -7,14 +9,14 @@ export const CreateOrderModal = ({ isOpen, onClose, onOrderCreated }) => {
     const [products, setProducts] = useState([]);
     
     // 1. Обновляем начальное состояние
-const [formData, setFormData] = useState({
-    customerId: '',
-    employeeId: '',
-    pickupPointId: 1, 
-    paymentStatus: 'Pending',
-    paymentMethod: 'Cash', // Добавлено по умолчанию
-    items: [] 
-});
+    const [formData, setFormData] = useState({
+        customerId: '',
+        employeeId: '',
+        pickupPointId: 1, 
+        paymentStatus: 'Pending',
+        paymentMethod: 'Cash', // Добавлено по умолчанию
+        items: [] 
+    });
 
     const [currentItem, setCurrentItem] = useState({ productId: '', quantity: 1 });
 
@@ -26,9 +28,9 @@ const [formData, setFormData] = useState({
                 api.get('/employees'), // Твой новый EmployeesController
                 api.get('/products')   // Твой ProductsController
             ]).then(([c, e, p]) => {
-                setCustomers(c.data);
-                setEmployees(e.data);
-                setProducts(p.data);
+                setCustomers(c.data.$values || c.data || []);
+                setEmployees(e.data.$values || e.data || []);
+                setProducts(p.data.$values || p.data || []);
             }).catch(err => console.error("Ошибка загрузки:", err));
         }
     }, [isOpen]);
@@ -61,6 +63,11 @@ const [formData, setFormData] = useState({
                 paymentMethod: formData.paymentMethod,
                 items: formData.items.map(({productId, quantity}) => ({productId, quantity}))
             });
+
+            // --- ЛОГИРОВАНИЕ СОЗДАНИЯ ЗАКАЗА ---
+            const customerName = customers.find(c => c.customerId === parseInt(formData.customerId))?.fullName || 'ID ' + formData.customerId;
+            logActivity('Заказы', `Оформлен новый заказ для: ${customerName} (Позиций: ${formData.items.length})`);
+
             onOrderCreated(); 
             onClose(); 
         } catch (err) {
@@ -105,18 +112,18 @@ const [formData, setFormData] = useState({
                             </select>
                         </div>
                     </div>
-<div>
-    <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
-    <select 
-        className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-        value={formData.paymentMethod}
-        onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-    >
-        <option value="Cash">Наличные</option>
-        <option value="Card">Карта</option>
-        <option value="Online">Онлайн</option>
-    </select>
-</div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
+                        <select 
+                            className="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                            value={formData.paymentMethod}
+                            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+                        >
+                            <option value="Cash">Наличные</option>
+                            <option value="Card">Карта</option>
+                            <option value="Online">Онлайн</option>
+                        </select>
+                    </div>
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                         <h3 className="text-blue-800 font-bold mb-3 flex items-center gap-2">
                             <span>🛒</span> Состав заказа

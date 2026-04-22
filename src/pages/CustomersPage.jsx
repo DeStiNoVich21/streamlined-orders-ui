@@ -1,16 +1,18 @@
-import { useEffect, useState, useMemo } from 'react'; // Добавили useMemo
+import { useEffect, useState, useMemo } from 'react';
 import api from '../api/axiosInstance';
 import { CreateCustomerModal } from '../components/CreateCustomerModal';
 import { EditCustomerModal } from '../components/EditCustomerModal';
+// --- ИМПОРТЫ ДЛЯ ЛОГИРОВАНИЯ И ЭКСПОРТА ---
+import { logActivity } from '../utils/logger';
+import { downloadCSV } from '../utils/exportUtils';
 
 export const CustomersPage = () => {
     const [customers, setCustomers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);
     
-    // --- НОВЫЕ СОСТОЯНИЯ ФИЛЬТРОВ ---
-    const [sortBy, setSortBy] = useState('name-asc'); // name-asc, name-desc
-    const [dataFilter, setDataFilter] = useState('all'); // all, no-phone, no-email
+    const [sortBy, setSortBy] = useState('name-asc'); 
+    const [dataFilter, setDataFilter] = useState('all'); 
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [editingCustomerId, setEditingCustomerId] = useState(null);
@@ -35,18 +37,13 @@ export const CustomersPage = () => {
 
     useEffect(() => { fetchCustomers(); }, []);
 
-    // --- ЛОГИКА ФИЛЬТРАЦИИ И СОРТИРОВКИ ---
     const filteredAndSortedCustomers = useMemo(() => {
         let result = [...customers];
-
-        // 1. Фильтрация по полноте данных
         if (dataFilter === 'no-phone') {
             result = result.filter(c => !c.phone || c.phone.trim() === '');
         } else if (dataFilter === 'no-email') {
             result = result.filter(c => !c.email || c.email.trim() === '');
         }
-
-        // 2. Сортировка по алфавиту
         result.sort((a, b) => {
             const nameA = a.fullName.toLowerCase();
             const nameB = b.fullName.toLowerCase();
@@ -54,19 +51,36 @@ export const CustomersPage = () => {
             if (sortBy === 'name-desc') return nameB.localeCompare(nameA);
             return 0;
         });
-
         return result;
     }, [customers, sortBy, dataFilter]);
 
-    const handleDelete = async (id) => {
+    // --- ОБЕРТКИ С ЛОГИРОВАНИЕМ ---
+    const handleCreated = () => {
+        fetchCustomers();
+        logActivity('Клиенты', 'Создан новый клиент');
+    };
+
+    const handleUpdated = () => {
+        fetchCustomers();
+        logActivity('Клиенты', `Обновлены данные клиента ID: ${editingCustomerId}`);
+    };
+
+    const handleDeleted = async (id) => {
         if (window.confirm("Вы уверены, что хотите удалить этого клиента?")) {
             try {
                 await api.delete(`/customers/${id}`);
                 setCustomers(customers.filter(c => c.customerId !== id));
+                logActivity('Клиенты', `Удален клиент ID: ${id}`);
             } catch (err) {
                 alert("Ошибка при удалении. Возможно, у клиента есть активные заказы.");
             }
         }
+    };
+
+    const handleExport = () => {
+        if (filteredAndSortedCustomers.length === 0) return;
+        downloadCSV(filteredAndSortedCustomers, 'customers_report.csv');
+        logActivity('Экспорт', `Экспорт списка клиентов (${filteredAndSortedCustomers.length} чел.)`);
     };
 
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -75,7 +89,6 @@ export const CustomersPage = () => {
 
     return (
         <div className="w-full space-y-6">
-            {/* ВЕРХНЯЯ ПАНЕЛЬ */}
             <div className="flex flex-col gap-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
@@ -84,6 +97,13 @@ export const CustomersPage = () => {
                     </div>
                     
                     <div className="flex w-full md:w-auto gap-2">
+                        <button 
+                            onClick={handleExport}
+                            className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl hover:bg-emerald-100 transition font-bold border border-emerald-100"
+                            title="Экспорт в CSV"
+                        >
+                            📥 CSV
+                        </button>
                         <div className="relative flex-1 md:w-64">
                             <span className="absolute left-3 top-2.5 text-gray-400">🔍</span>
                             <input 
@@ -110,7 +130,6 @@ export const CustomersPage = () => {
                     </div>
                 </div>
 
-                {/* --- ПАНЕЛЬ ФИЛЬТРОВ --- */}
                 <div className="flex flex-wrap gap-4 pt-4 border-t border-gray-50">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Алфавит:</span>
@@ -139,7 +158,6 @@ export const CustomersPage = () => {
                 </div>
             </div>
 
-            {/* ОСНОВНОЙ КОНТЕНТ */}
             {loading ? (
                 <div className="flex justify-center py-20 animate-pulse italic text-gray-400">
                     Загрузка клиентов...
@@ -162,7 +180,7 @@ export const CustomersPage = () => {
                                             ✏️
                                         </button>
                                         <button 
-                                            onClick={() => handleDelete(c.customerId)}
+                                            onClick={() => handleDeleted(c.customerId)}
                                             className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
                                             title="Удалить"
                                         >
@@ -196,7 +214,6 @@ export const CustomersPage = () => {
                         ))}
                     </div>
 
-                    {/* ПАНЕЛЬ ПАГИНАЦИИ */}
                     {totalPages > 1 && (
                         <div className="flex justify-center items-center gap-3 pt-8 pb-10">
                             <button 
@@ -238,14 +255,14 @@ export const CustomersPage = () => {
             <CreateCustomerModal 
                 isOpen={isCreateOpen} 
                 onClose={() => setIsCreateOpen(false)} 
-                onCustomerCreated={fetchCustomers} 
+                onCustomerCreated={handleCreated} 
             />
             
             <EditCustomerModal 
                 isOpen={!!editingCustomerId} 
                 customerId={editingCustomerId} 
                 onClose={() => setEditingCustomerId(null)} 
-                onCustomerUpdated={fetchCustomers} 
+                onCustomerUpdated={handleUpdated} 
             />
         </div>
     );

@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import api from '../api/axiosInstance';
 import { PickupPointModal } from '../components/PickupPointModal';
+// --- ИМПОРТЫ ДЛЯ ЛОГИРОВАНИЯ И ЭКСПОРТА ---
+import { logActivity } from '../utils/logger';
+import { downloadCSV } from '../utils/exportUtils';
 
 export const PickupPointsPage = () => {
     const [points, setPoints] = useState([]);
@@ -10,7 +13,7 @@ export const PickupPointsPage = () => {
     const [selectedPoint, setSelectedPoint] = useState(null);
 
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 6; // Пункты выдачи обычно содержат больше текста, сделаем по 6
+    const itemsPerPage = 6; 
 
     const fetchPoints = async () => {
         setLoading(true);
@@ -33,15 +36,29 @@ export const PickupPointsPage = () => {
         );
     }, [points, searchQuery]);
 
-    const handleDelete = async (id) => {
+    // --- ОБЕРТКИ С ЛОГИРОВАНИЕМ ---
+    const handleSaveWithLog = () => {
+        const action = selectedPoint ? 'Редактирование' : 'Создание';
+        logActivity('Пункты выдачи', `${action} точки: ${selectedPoint?.address || 'Новая локация'}`);
+        fetchPoints();
+    };
+
+    const handleDeleteWithLog = async (id, address) => {
         if (window.confirm("Удалить этот пункт выдачи?")) {
             try {
                 await api.delete(`/pickuppoints/${id}`);
                 setPoints(points.filter(p => p.pointId !== id));
+                logActivity('Пункты выдачи', `Удалена точка ID: ${id} (${address})`);
             } catch (err) {
                 alert("Ошибка при удалении.");
             }
         }
+    };
+
+    const handleExportWithLog = () => {
+        if (filteredPoints.length === 0) return;
+        downloadCSV(filteredPoints, 'pickup_points_report.csv');
+        logActivity('Экспорт', `Экспорт списка пунктов выдачи (${filteredPoints.length} объектов)`);
     };
 
     const indexOfLastItem = currentPage * itemsPerPage;
@@ -57,6 +74,13 @@ export const PickupPointsPage = () => {
                         <p className="text-gray-500 text-sm font-medium">Всего локаций: {filteredPoints.length}</p>
                     </div>
                     <div className="flex w-full md:w-auto gap-2">
+                        <button 
+                            onClick={handleExportWithLog}
+                            className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl hover:bg-emerald-100 transition font-bold border border-emerald-100"
+                            title="Экспорт в CSV"
+                        >
+                            📥 CSV
+                        </button>
                         <input 
                             type="text" 
                             placeholder="Поиск по адресу или менеджеру..." 
@@ -109,7 +133,7 @@ export const PickupPointsPage = () => {
                                             ✏️ Редактировать
                                         </button>
                                         <button 
-                                            onClick={() => handleDelete(p.pointId)}
+                                            onClick={() => handleDeleteWithLog(p.pointId, p.address)}
                                             className="flex-1 bg-gray-50 hover:bg-red-50 text-red-500 py-3.5 rounded-2xl transition-all border border-transparent hover:border-red-100"
                                         >
                                             🗑️
@@ -121,52 +145,49 @@ export const PickupPointsPage = () => {
                     </div>
 
                     {/* Пагинация */}
-{totalPages > 1 && (
-    <div className="flex justify-center items-center gap-3 pt-10 pb-10">
-        {/* Кнопка Назад */}
-        <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                currentPage === 1 
-                ? 'text-gray-300 cursor-not-allowed' 
-                : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 shadow-sm'
-            }`}
-        >
-            ← <span className="hidden sm:inline">Назад</span>
-        </button>
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-3 pt-10 pb-10">
+                            <button
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(prev => prev - 1)}
+                                className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                                    currentPage === 1 
+                                    ? 'text-gray-300 cursor-not-allowed' 
+                                    : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 shadow-sm'
+                                }`}
+                            >
+                                ← <span className="hidden sm:inline">Назад</span>
+                            </button>
 
-        {/* Номера страниц */}
-        <div className="flex gap-2">
-            {[...Array(totalPages)].map((_, i) => (
-                <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`w-10 h-10 rounded-xl font-bold transition-all ${
-                        currentPage === i + 1 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110' 
-                        : 'bg-white text-gray-400 hover:bg-gray-50 border border-gray-100'
-                    }`}
-                >
-                    {i + 1}
-                </button>
-            ))}
-        </div>
+                            <div className="flex gap-2">
+                                {[...Array(totalPages)].map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setCurrentPage(i + 1)}
+                                        className={`w-10 h-10 rounded-xl font-bold transition-all ${
+                                            currentPage === i + 1 
+                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-110' 
+                                            : 'bg-white text-gray-400 hover:bg-gray-50 border border-gray-100'
+                                        }`}
+                                    >
+                                        {i + 1}
+                                    </button>
+                                ))}
+                            </div>
 
-        {/* Кнопка Вперёд */}
-        <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
-                currentPage === totalPages 
-                ? 'text-gray-300 cursor-not-allowed' 
-                : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 shadow-sm'
-            }`}
-        >
-            <span className="hidden sm:inline">Вперёд</span> →
-        </button>
-    </div>
-)}
+                            <button
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(prev => prev + 1)}
+                                className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-2 ${
+                                    currentPage === totalPages 
+                                    ? 'text-gray-300 cursor-not-allowed' 
+                                    : 'bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 shadow-sm'
+                                }`}
+                            >
+                                <span className="hidden sm:inline">Вперёд</span> →
+                            </button>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -174,7 +195,7 @@ export const PickupPointsPage = () => {
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)} 
                 point={selectedPoint}
-                onSave={fetchPoints} 
+                onSave={handleSaveWithLog} 
             />
         </div>
     );

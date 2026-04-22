@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const LoginPage = () => {
     const [username, setUsername] = useState('');
@@ -14,6 +16,10 @@ export const LoginPage = () => {
         setError('');
         try {
             await login(username, password);
+            
+            // --- ЛОГИРОВАНИЕ УСПЕШНОГО ВХОДА ---
+            logActivity('Авторизация', `Пользователь ${username} вошел в систему`);
+            
             navigate('/orders');
         } catch (err) {
             setError('Неверный логин или пароль');

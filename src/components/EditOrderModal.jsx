@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => {
     const [customers, setCustomers] = useState([]);
@@ -65,6 +67,10 @@ export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => 
             };
 
             await api.put(`/orders/${orderId}`, updatePayload);
+            
+            // --- ЛОГИРОВАНИЕ ИЗМЕНЕНИЯ ЗАКАЗА ---
+            logActivity('Заказы', `Редактирование заказа #${orderId}. Статус: ${formData.status}, Позиций: ${orderItems.length}`);
+            
             onOrderUpdated(); 
             onClose();
         } catch (err) {
@@ -124,18 +130,18 @@ export const EditOrderModal = ({ isOpen, onClose, orderId, onOrderUpdated }) => 
                             <option value="Cancelled">Cancelled</option>
                         </select>
                     </div>
-<div>
-        <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
-        <select 
-            className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-            value={formData.paymentMethod}
-            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
-        >
-            <option value="Cash">Наличные</option>
-            <option value="Card">Карта</option>
-            <option value="Online">Онлайн</option>
-        </select>
-    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">Способ оплаты</label>
+                        <select 
+                            className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                            value={formData.paymentMethod}
+                            onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+                        >
+                            <option value="Cash">Наличные</option>
+                            <option value="Card">Карта</option>
+                            <option value="Online">Онлайн</option>
+                        </select>
+                    </div>
                     {/* СЕКЦИЯ РЕДАКТИРОВАНИЯ ТОВАРОВ */}
                     <div className="border-t pt-4">
                         <h3 className="text-md font-bold text-gray-700 mb-3 flex items-center gap-2">

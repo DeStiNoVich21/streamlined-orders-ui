@@ -20,6 +20,10 @@ export const Layout = ({ children }) => {
                 <h1 className="text-2xl font-bold mb-10 text-blue-400 tracking-tighter">ERP System</h1>
                 
                 <nav className="space-y-2 flex-1">
+                    <Link to="/dashboard" className={`flex items-center space-x-2 p-3 hover:bg-slate-800 rounded-xl transition ${isActive('/dashboard')}`}>
+                        <span className="text-lg">📊</span> <span>Аналитика</span>
+                    </Link>
+
                     <Link to="/orders" className={`flex items-center space-x-2 p-3 hover:bg-slate-800 rounded-xl transition ${isActive('/orders')}`}>
                         <span>📦</span> <span>Заказы</span>
                     </Link>
@@ -49,6 +53,12 @@ export const Layout = ({ children }) => {
                             {user?.role === 'Admin' && (
                                 <Link to="/users" className={`flex items-center space-x-2 p-3 hover:bg-slate-800 rounded-xl transition ${isActive('/users')}`}>
                                     <span className="text-orange-400">🛡️</span> <span>Пользователи</span>
+                                </Link>
+                            )}
+                            {/* Ссылка видна только Админу */}
+                            {user?.role === 'Admin' && (
+                                <Link to="/activity-log" className={`flex items-center space-x-2 p-3 hover:bg-slate-800 rounded-xl transition ${isActive('/activity-log')}`}>
+                                    <span className="text-orange-400">🛡️</span> <span>Лог активностей</span>
                                 </Link>
                             )}
                         </div>

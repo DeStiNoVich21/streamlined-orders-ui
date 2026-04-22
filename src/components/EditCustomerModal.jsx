@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const EditCustomerModal = ({ isOpen, customerId, onClose, onCustomerUpdated }) => {
     const [formData, setFormData] = useState({ fullName: '', email: '', phone: '', address: '' });
@@ -23,6 +25,10 @@ export const EditCustomerModal = ({ isOpen, customerId, onClose, onCustomerUpdat
         e.preventDefault();
         try {
             await api.put(`/customers/${customerId}`, formData);
+            
+            // --- ЛОГИРОВАНИЕ ОБНОВЛЕНИЯ ---
+            logActivity('Клиенты', `Обновлены данные клиента: ${formData.fullName} (ID: ${customerId})`);
+            
             onCustomerUpdated();
             onClose();
         } catch (err) { alert("Ошибка при обновлении"); }

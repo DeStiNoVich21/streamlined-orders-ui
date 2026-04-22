@@ -8,6 +8,9 @@ import { EmployeesPage } from './pages/EmployeesPage.jsx';
 import { PickupPointsPage } from './pages/PickupPointsPage.jsx';
 import { UsersPage } from './pages/UsersPage.jsx'; // 1. Импорт страницы пользователей
 import { Layout } from './components/Layout.jsx';
+import { DashboardPage } from './pages/DashboardPage.jsx'; // <--- ДОБАВЛЕНО
+import { Toaster } from 'react-hot-toast';
+import { ActivityLogPage } from './pages/ActivityLogPage';
 
 const PrivateRoute = ({ children, roles }) => {
     const { user, loading } = useAuth();
@@ -26,11 +29,13 @@ const PrivateRoute = ({ children, roles }) => {
 
 function App() {
     return (
+        <>
+      <Toaster position="top-right" reverseOrder={false} />
         <AuthProvider>
             <BrowserRouter>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
-                    
+                    <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
                     <Route path="/orders" element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
                     <Route path="/customers" element={<PrivateRoute><CustomersPage /></PrivateRoute>} />
                     <Route path="/products" element={<PrivateRoute><ProductsPage /></PrivateRoute>} />
@@ -45,12 +50,17 @@ function App() {
                     <Route path="/users" element={
                         <PrivateRoute roles={['Admin']}><UsersPage /></PrivateRoute>
                     } />
-
+                   
+                    {/* 3. Лог активностей доступен ТОЛЬКО Админу */}
+                    <Route path="/activity-log" element={
+                        <PrivateRoute roles={['Admin']}><ActivityLogPage /></PrivateRoute>
+                    } />
                     <Route path="/" element={<Navigate to="/orders" />} />
                     <Route path="*" element={<Navigate to="/orders" />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
+        </>
     );
 }
 

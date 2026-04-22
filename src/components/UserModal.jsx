@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const UserModal = ({ isOpen, onClose, user, onSave }) => {
     const [formData, setFormData] = useState({
@@ -40,9 +42,13 @@ export const UserModal = ({ isOpen, onClose, user, onSave }) => {
             if (user) {
                 const userId = user.userId || user.UserId;
                 await api.put(`/admin/${userId}`, payload);
+                // ЛОГИРОВАНИЕ ОБНОВЛЕНИЯ
+                logActivity('Управление доступом', `Изменен аккаунт: ${formData.username} (Роль: ${formData.role})`);
             } else {
                 // Для создания нового пользователя у тебя маршрут api/admin/register
                 await api.post('/admin/register', payload);
+                // ЛОГИРОВАНИЕ РЕГИСТРАЦИИ
+                logActivity('Управление доступом', `Зарегистрирован новый пользователь: ${formData.username} (${formData.role})`);
             }
             
             onSave(); // Обновить список на странице

@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/axiosInstance';
 import { CreateOrderModal } from '../components/CreateOrderModal';
 import { EditOrderModal } from '../components/EditOrderModal';
+// --- ИМПОРТЫ ЛАБЫ 14 ---
+import { logActivity } from '../utils/logger';
+import { downloadCSV } from '../utils/exportUtils';
 
 export const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
@@ -73,8 +76,28 @@ export const OrdersPage = () => {
             try {
                 await api.delete(`/orders/${id}`);
                 setOrders(orders.filter(o => o.orderId !== id));
+                // --- ЛОГИРОВАНИЕ УДАЛЕНИЯ ---
+                logActivity('Удаление', `Заказ #${id} был удален`, id);
             } catch (err) { alert("Ошибка при удалении."); }
         }
+    };
+
+    // --- ФУНКЦИИ-ОБЕРТКИ ДЛЯ МОДАЛОК (ЛОГИРОВАНИЕ) ---
+    const handleCreated = () => {
+        fetchData();
+        logActivity('Создание', 'Создан новый заказ');
+    };
+
+    const handleUpdated = () => {
+        fetchData();
+        logActivity('Изменение', `Обновлены данные заказа #${editingOrderId}`, editingOrderId);
+    };
+
+    // --- ЭКСПОРТ В CSV ---
+    const handleExport = () => {
+        if (filteredOrders.length === 0) return;
+        downloadCSV(filteredOrders, 'orders_report.csv');
+        logActivity('Экспорт', `Выгружено заказов: ${filteredOrders.length}`);
     };
 
     const getCustomerName = (id) => customers.find(c => c.customerId === id)?.fullName || `Клиент #${id}`;
@@ -98,11 +121,12 @@ export const OrdersPage = () => {
 
     return (
         <div className="w-full space-y-6">
-            {/* Хедер и фильтры (без изменений) */}
+            {/* Хедер и фильтры */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <h2 className="text-2xl font-black text-gray-900">Управление заказами</h2>
                     <div className="flex gap-2">
+                        <button onClick={handleExport} title="Экспорт в CSV" className="p-2.5 border rounded-xl hover:bg-emerald-50 text-emerald-600 border-emerald-100 transition-colors font-bold text-sm">📥 CSV</button>
                         <button onClick={fetchData} className="p-2.5 border rounded-xl hover:bg-gray-50">🔄</button>
                         <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">+ Создать заказ</button>
                     </div>
@@ -169,20 +193,19 @@ export const OrdersPage = () => {
                                         </span>
                                     </td>
                                     <td className="p-5">
-    <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
-        {order.paymentMethod || 'Не указан'}
-    </span>
-</td>
+                                        <span className="text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                            {order.paymentMethod || 'Не указан'}
+                                        </span>
+                                    </td>
                                     <td className="p-5 font-black text-gray-900 text-right">{order.totalAmount?.toLocaleString()} ₽</td>
                                     <td className="p-5 text-center space-x-2">
                                         <button onClick={() => setEditingOrderId(order.orderId)} className="text-blue-500 hover:text-blue-700 text-xs font-bold p-2">ИЗМЕНИТЬ</button>
                                         <button onClick={() => handleDelete(order.orderId)} className="text-red-400 hover:text-red-600 text-xs font-bold p-2">УДАЛИТЬ</button>
                                     </td>
                                 </tr>
-                                {/* Содержимое раскрывающегося ряда (без изменений) */}
                                 {expandedRows.includes(order.orderId) && (
                                     <tr className="bg-gray-50/50">
-                                        <td colSpan="6" className="p-6">
+                                        <td colSpan="7" className="p-6">
                                             <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-inner">
                                                 <h4 className="text-sm font-bold text-gray-600 mb-3 flex items-center gap-2">📦 Состав заказа:</h4>
                                                 <div className="grid grid-cols-1 gap-2">
@@ -248,8 +271,8 @@ export const OrdersPage = () => {
                 </div>
             </div>
 
-            <CreateOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onOrderCreated={fetchData} />
-            <EditOrderModal isOpen={!!editingOrderId} orderId={editingOrderId} onClose={() => setEditingOrderId(null)} onOrderUpdated={fetchData} />
+            <CreateOrderModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onOrderCreated={handleCreated} />
+            <EditOrderModal isOpen={!!editingOrderId} orderId={editingOrderId} onClose={() => setEditingOrderId(null)} onOrderUpdated={handleUpdated} />
         </div>
     );
 };

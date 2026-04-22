@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import api from '../api/axiosInstance';
+// --- ИМПОРТ ДЛЯ ЛОГИРОВАНИЯ ---
+import { logActivity } from '../utils/logger';
 
 export const CreateCustomerModal = ({ isOpen, onClose, onCustomerCreated }) => {
     const [formData, setFormData] = useState({ fullName: '', email: '', phone: '', address: '' });
@@ -10,6 +12,10 @@ export const CreateCustomerModal = ({ isOpen, onClose, onCustomerCreated }) => {
         e.preventDefault();
         try {
             await api.post('/customers', formData);
+            
+            // --- ЛОГИРОВАНИЕ СОЗДАНИЯ КЛИЕНТА ---
+            logActivity('Клиенты', `Создан новый клиент: ${formData.fullName}`);
+            
             onCustomerCreated();
             onClose();
             setFormData({ fullName: '', email: '', phone: '', address: '' });
