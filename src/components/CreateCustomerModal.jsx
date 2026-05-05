@@ -33,23 +33,23 @@ export const CreateCustomerModal = ({ isOpen, onClose, onCustomerCreated }) => {
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">ФИО</label>
-                        <input required type="text" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
+                        <label htmlFor="fullName" className="block text-xs font-bold text-gray-400 uppercase mb-1">ФИО</label>
+                        <input id="fullName" required type="text"  className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
                             value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Email</label>
-                        <input type="email" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
+                        <label htmlFor="email" className="block text-xs font-bold text-gray-400 uppercase mb-1">Email</label>
+                        <input id="email" type="email" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
                             value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Телефон</label>
-                        <input type="text" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
+                        <label htmlFor="phone" className="block text-xs font-bold text-gray-400 uppercase mb-1">Телефон</label>
+                        <input id="phone" type="text" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500" 
                             value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Адрес</label>
-                        <textarea className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 h-24" 
+                        <label htmlFor="address" className="block text-xs font-bold text-gray-400 uppercase mb-1">Адрес</label>
+                        <textarea id="address" className="w-full border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 h-24" 
                             value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
                     </div>
                     <div className="flex gap-3 pt-4">

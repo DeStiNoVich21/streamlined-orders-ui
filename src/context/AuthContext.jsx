@@ -23,9 +23,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
-        authService.logout();
-        setUser(null);
-    };
+    authService.logout();
+    localStorage.removeItem('user'); // Добавь эту строку!
+    localStorage.removeItem('token'); // Если токен тоже хранишь
+    setUser(null);
+};
 
     return (
         <AuthContext.Provider value={{ user, login, logout, loading }}>
